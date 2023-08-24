@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {faCircleArrowRight} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-native-fontawesome';
@@ -12,11 +13,50 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
-import ProgressCircle from 'react-native-progress-circle';
+import Animated, {
+  useSharedValue,
+  withTiming,
+  useDerivedValue,
+  interpolateColor,
+  useAnimatedProps,
+} from 'react-native-reanimated';
+import {Circle, Svg} from 'react-native-svg';
 
 const {width, height} = Dimensions.get('window');
 
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+const radius = 45;
+const circumference = radius * (Math.PI * 2);
+const duration = 5000;
+
 const App = () => {
+  const strokeOffset = useSharedValue(circumference);
+
+  const percentage = useDerivedValue(() => {
+    const number = ((circumference - strokeOffset.value) / circumference) * 100;
+    return withTiming(number, {duration: duration});
+  });
+
+  const strokeColor = useDerivedValue(() => {
+    return interpolateColor(
+      percentage.value,
+      [0, 50, 100],
+      ['#9e4784', '#66347f', '#373706'],
+    );
+  });
+
+  const animatedCircleProps = useAnimatedProps(() => {
+    return {
+      strokeDashOffset: withTiming(strokeOffset.value, {duration: duration}),
+      stroke: strokeColor.value,
+    };
+  });
+
+  useEffect(() => {
+    strokeOffset.value = 0;
+  });
+
   return (
     <View style={styles.background}>
       <Image
@@ -40,14 +80,31 @@ const App = () => {
             <View style={styles.inactivePageTwo} />
           </View>
           <View style={styles.goToNextPage}>
-            <ProgressCircle
-              percent={40}
-              radius={50}
-              borderWidth={8}
-              color="#f00"
-              shadowColor="#999"
-              bgColor="#fff"
-            />
+            <View style={styles.progressRing}>
+              <Svg
+                height={(10 / 100) * height}
+                width={(20 / 100) * width}
+                viewBox="0 0 20 100">
+                <Circle
+                  cx={20}
+                  cy={50}
+                  r={45}
+                  stroke={'black'}
+                  strokeWidth={10}
+                  fill={'transparent'}
+                />
+                <AnimatedCircle
+                  animatedProps={animatedCircleProps}
+                  cx={20}
+                  cy={50}
+                  r={45}
+                  strokeDasharray={`${radius * (Math.PI * 2)}`}
+                  stroke={'black'}
+                  strokeWidth={10}
+                  fill={'transparent'}
+                />
+              </Svg>
+            </View>
             <FontAwesomeIcon
               style={styles.nextPageArrow}
               icon={faCircleArrowRight}
@@ -134,15 +191,15 @@ const styles = StyleSheet.create({
   goToNextPage: {
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+    height: (45 / 100) * height,
   },
 
-  ring: {
-    color: 'yellow',
+  progressRing: {
+    position: 'absolute',
   },
 
   nextPageArrow: {
-    position: 'relative',
-    zIndex: 10,
     top: 0,
   },
 });
